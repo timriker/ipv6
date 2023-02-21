@@ -189,7 +189,7 @@ int main(int argc, char *argv[])
     ((struct sockaddr_in *)&server_addr)->sin_addr.s_addr = INADDR_ANY;
     ((struct sockaddr_in *)&server_addr)->sin_port = htons(SERVER_PORT);
 
-     printf("Trying: %s\n", sockaddr2nameport((struct sockaddr *)&server_addr));
+    printf("Trying: %s\n", sockaddr2nameport((struct sockaddr *)&server_addr));
     printf("sizeof sockaddr %lu\n",sizeof(struct sockaddr));
     printf("sizeof sockaddr_in %lu\n",sizeof(struct sockaddr_in));
     printf("sizeof sockaddr_in6 %lu\n",sizeof(struct sockaddr_in6));
@@ -319,8 +319,8 @@ int main(int argc, char *argv[])
                         ret = ioctl(sock_fd, FIONREAD, &nread);
                         if (ret == -1) {
                             perror("ioctl()");
-                            close(listen_sock_fd);
-                            return EXIT_FAILURE;
+                            close_client_socket(sock_fd, &max_fd, &sock_set);
+                            continue;
                         }
 
                         /* When there is no data to read, then FIN packet was received
@@ -336,7 +336,7 @@ int main(int argc, char *argv[])
                             if (ret == -1) {
                                 perror("recvfrom()");
                                 close_client_socket(sock_fd, &max_fd, &sock_set);
-                                return EXIT_FAILURE;
+                                continue;
                             }
 
                             printf("Received %i bytes from #%d (%s)\n",
@@ -358,7 +358,7 @@ int main(int argc, char *argv[])
                             if (ret == -1) {
                                 perror("sendto()");
                                 close_client_socket(sock_fd, &max_fd, &sock_set);
-                                return EXIT_FAILURE;
+                                continue;
                             }
                         }
                     }
