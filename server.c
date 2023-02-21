@@ -156,10 +156,15 @@ char *sockaddr2nameport(const struct sockaddr *sa)
     return nameport;
 }
 
+int listen_sock_fd = -1, listen_udp_sock_fd = -1;
 /* Close socket used for communication with client */
 void close_client_socket(int client_sock_fd, int *max_fd, fd_set *set)
 {
     int ret;
+    if (client_sock_fd == listen_sock_fd)
+        return;
+    if (client_sock_fd == listen_udp_sock_fd)
+        return;
 
     printf("Closing connection #%d ...\n", client_sock_fd);
     ret = close(client_sock_fd);
@@ -173,7 +178,7 @@ void close_client_socket(int client_sock_fd, int *max_fd, fd_set *set)
 
 int main(int argc, char *argv[])
 {
-    int listen_sock_fd = -1, listen_udp_sock_fd, client_sock_fd = -1, sock_fd, max_fd = -1;
+    int client_sock_fd = -1, sock_fd, max_fd = -1;
     struct sockaddr_in6 server_addr, client_addr;
     socklen_t client_addr_len;
     int ret, flag;
@@ -266,6 +271,7 @@ int main(int argc, char *argv[])
     /* UDP Listen socket is the max socket */
     max_fd = listen_udp_sock_fd;
 
+    int lastret = -1;
     while(1) {
         /* Set up timeout */
         timeout.tv_sec = 1;
@@ -281,6 +287,10 @@ int main(int argc, char *argv[])
             /* Remember number of events on sockets */
             int count = ret;
 
+            if (lastret == 0) {
+                printf("\n");
+            }
+            lastret=ret;
             printf("Select %u ...\n", count);
 
             /* Iterate over all sockets */
@@ -365,7 +375,13 @@ int main(int argc, char *argv[])
                 }
             }
         } else if(ret == 0) {
-            printf("Timeout, %d fds ...\n", max_fd);
+            if (lastret == 0) {
+                printf(".");
+                fflush(stdout);
+            } else {
+                printf("Timeout, %d fds ", max_fd);
+            }
+            lastret=ret;
         } else {
             perror("select()");
             close(listen_sock_fd);
