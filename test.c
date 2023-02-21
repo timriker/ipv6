@@ -26,7 +26,6 @@ int main()
    int rc, on=1, rcdsize=BUFFER_LENGTH;
    char buffer[BUFFER_LENGTH];
    struct sockaddr_in6 serveraddr, clientaddr;
-   struct sockaddr_storage otheraddr;
    unsigned int addrlen=sizeof(clientaddr);
    char str[INET6_ADDRSTRLEN];
 
@@ -194,3 +193,11 @@ int main()
    if (sdconn != -1)
       close(sdconn);
 }
+
+// Local Variables: ***
+// mode: C++ ***
+// tab-width: 3 ***
+// c-basic-offset: 3 ***
+// indent-tabs-mode: nil ***
+// End: ***
+// ex: shiftwidth=4 tabstop=4
