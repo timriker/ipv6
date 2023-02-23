@@ -14,7 +14,7 @@
 #include <assert.h>
 
 #define CLIENT_QUEUE_LEN   10
-#define SERVER_PORT        7002
+#define SERVER_PORT        5154
 #define BUFFERLENGTH       UINT16_MAX
 
 /*
@@ -186,13 +186,15 @@ int main(int argc, char *argv[])
     struct timeval timeout;
     char ch[BUFFERLENGTH];
 
+    // IPv6
     server_addr.sin6_family = AF_INET6;
     server_addr.sin6_addr = in6addr_any;
     server_addr.sin6_port = htons(SERVER_PORT);
 
-    ((struct sockaddr *)&server_addr)->sa_family = AF_INET;
-    ((struct sockaddr_in *)&server_addr)->sin_addr.s_addr = INADDR_ANY;
-    ((struct sockaddr_in *)&server_addr)->sin_port = htons(SERVER_PORT);
+    // IPv4
+    //((struct sockaddr *)&server_addr)->sa_family = AF_INET;
+    //((struct sockaddr_in *)&server_addr)->sin_addr.s_addr = INADDR_ANY;
+    //((struct sockaddr_in *)&server_addr)->sin_port = htons(SERVER_PORT);
 
     printf("Trying: %s\n", sockaddr2nameport((struct sockaddr *)&server_addr));
     printf("sizeof sockaddr %lu\n",sizeof(struct sockaddr));
