@@ -19,8 +19,8 @@ main(int argc, char *argv[])
     ssize_t nread;
     char buf[BUF_SIZE];
 
-    if (argc != 2) {
-        fprintf(stderr, "Usage: %s port\n", argv[0]);
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s name service\n\texample 0.0.0.0 8000\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
@@ -33,7 +33,7 @@ main(int argc, char *argv[])
     hints.ai_addr = NULL;
     hints.ai_next = NULL;
 
-    s = getaddrinfo(NULL, argv[1], &hints, &result);
+    s = getaddrinfo(argv[1], argv[2], &hints, &result);
     if (s != 0) {
         fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
         exit(EXIT_FAILURE);
@@ -50,8 +50,22 @@ main(int argc, char *argv[])
         if (sfd == -1)
             continue;
 
-        if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0)
+        printf("family:%u len:%u\n", rp->ai_family, rp->ai_addrlen);
+
+        if (bind(sfd, rp->ai_addr, rp->ai_addrlen) == 0) {
+            printf("bind:%u \n", sfd);
+
+            char host[NI_MAXHOST], service[NI_MAXSERV];
+            s = getnameinfo(rp->ai_addr,
+                    rp->ai_addrlen, host, NI_MAXHOST,
+                    service, NI_MAXSERV, NI_NUMERICSERV);
+            if (s == 0)
+                printf("Listening on %s:%s\n", host, service);
+            else
+                fprintf(stderr, "getnameinfo: %s\n", gai_strerror(s));
+
             break;                  /* Success */
+        }
 
         close(sfd);
     }
