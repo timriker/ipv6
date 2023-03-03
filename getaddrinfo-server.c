@@ -9,8 +9,7 @@
 #define BUF_SIZE 500
 
 int
-main(int argc, char *argv[])
-{
+main(int argc, char *argv[]) {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int sfd, s;
@@ -46,7 +45,7 @@ main(int argc, char *argv[])
 
     for (rp = result; rp != NULL; rp = rp->ai_next) {
         sfd = socket(rp->ai_family, rp->ai_socktype,
-                rp->ai_protocol);
+                     rp->ai_protocol);
         if (sfd == -1)
             continue;
 
@@ -57,8 +56,8 @@ main(int argc, char *argv[])
 
             char host[NI_MAXHOST], service[NI_MAXSERV];
             s = getnameinfo(rp->ai_addr,
-                    rp->ai_addrlen, host, NI_MAXHOST,
-                    service, NI_MAXSERV, NI_NUMERICSERV);
+                            rp->ai_addrlen, host, NI_MAXHOST,
+                            service, NI_MAXSERV, NI_NUMERICSERV);
             if (s == 0)
                 printf("Listening on %s:%s\n", host, service);
             else
@@ -82,7 +81,7 @@ main(int argc, char *argv[])
     for (;;) {
         peer_addr_len = sizeof(peer_addr);
         nread = recvfrom(sfd, buf, BUF_SIZE, 0,
-                (struct sockaddr *) &peer_addr, &peer_addr_len);
+                         (struct sockaddr *) &peer_addr, &peer_addr_len);
         if (nread == -1)
             continue;               /* Ignore failed request */
 
@@ -93,13 +92,13 @@ main(int argc, char *argv[])
                         service, NI_MAXSERV, NI_NUMERICSERV);
         if (s == 0)
             printf("Received %zd bytes from %s:%s\n",
-                    nread, host, service);
+                   nread, host, service);
         else
             fprintf(stderr, "getnameinfo: %s\n", gai_strerror(s));
 
         if (sendto(sfd, buf, nread, 0,
-                    (struct sockaddr *) &peer_addr,
-                    peer_addr_len) != nread)
+                   (struct sockaddr *) &peer_addr,
+                   peer_addr_len) != nread)
             fprintf(stderr, "Error sending response\n");
     }
 }

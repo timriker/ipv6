@@ -29,8 +29,7 @@
  */
 
 char hexdump_buffer[BUFFERLENGTH / 16 * 71];
-int hexdump(void const *data, size_t length, int linelen, int split)
-{
+int hexdump(void const *data, size_t length, int linelen, int split) {
     char *ptr;
     const char *inptr;
     int pos;
@@ -75,9 +74,8 @@ int hexdump(void const *data, size_t length, int linelen, int split)
             if (lrem) {
                 ptr += sprintf(ptr, "%.2x ", *((unsigned char *) inptr + pos));
                 lrem--;
-            } else {
+            } else
                 ptr += sprintf(ptr, "   ");
-            }
         }
 
         *ptr++ = ' ';
@@ -99,11 +97,11 @@ int hexdump(void const *data, size_t length, int linelen, int split)
 
             if (lrem) {
                 c = *((unsigned char *) inptr + pos);
-                if (c > 31 && c < 127) {
+                if (c > 31 && c < 127)
                     ptr += sprintf(ptr, "%c", c);
-                } else {
+
+                else
                     ptr += sprintf(ptr, ".");
-                }
                 lrem--;
             }
         }
@@ -119,20 +117,19 @@ int hexdump(void const *data, size_t length, int linelen, int split)
 }
 
 static char address[INET6_ADDRSTRLEN];
-char *sockaddr2name(const struct sockaddr *sa)
-{
+char *sockaddr2name(const struct sockaddr *sa) {
     switch(sa->sa_family) {
-        case AF_INET:
-            inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr), address, INET6_ADDRSTRLEN);
-            break;
+    case AF_INET:
+        inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr), address, INET6_ADDRSTRLEN);
+        break;
 
-        case AF_INET6:
-            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr), address, INET6_ADDRSTRLEN);
-            break;
+    case AF_INET6:
+        inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr), address, INET6_ADDRSTRLEN);
+        break;
 
-        default:
-            strncpy(address, "Unknown AF", 11);
-            return address;
+    default:
+        strncpy(address, "Unknown AF", 11);
+        return address;
     }
 
     return address;
@@ -140,32 +137,30 @@ char *sockaddr2name(const struct sockaddr *sa)
 
 // address + []:port
 static char nameport[INET6_ADDRSTRLEN + 8];
-char *sockaddr2nameport(const struct sockaddr *sa)
-{
+char *sockaddr2nameport(const struct sockaddr *sa) {
     switch(sa->sa_family) {
-        case AF_INET:
-            sprintf(nameport, "%s:%u", sockaddr2name(sa), ntohs(((struct sockaddr_in *)sa)->sin_port));
-            break;
+    case AF_INET:
+        sprintf(nameport, "%s:%u", sockaddr2name(sa), ntohs(((struct sockaddr_in *)sa)->sin_port));
+        break;
 
-        case AF_INET6:
-            sprintf(nameport, "[%s]:%u", sockaddr2name(sa), ntohs(((struct sockaddr_in6 *)sa)->sin6_port));
-            break;
+    case AF_INET6:
+        sprintf(nameport, "[%s]:%u", sockaddr2name(sa), ntohs(((struct sockaddr_in6 *)sa)->sin6_port));
+        break;
 
-        default:
-            strncpy(nameport, "Unknown AF", 11);
+    default:
+        strncpy(nameport, "Unknown AF", 11);
     }
 
     return nameport;
 }
 
-int listen_sock_fd = -1, listen_udp_sock_fd = -1;
+int tcpfd = -1, udpfd = -1;
 /* Close socket used for communication with client */
-void close_client_socket(int client_sock_fd, int *max_fd, fd_set *set)
-{
+void close_client_socket(int client_sock_fd, int *max_fd, fd_set *set) {
     int ret;
-    if (client_sock_fd == listen_sock_fd)
+    if (client_sock_fd == tcpfd)
         return;
-    if (client_sock_fd == listen_udp_sock_fd)
+    if (client_sock_fd == udpfd)
         return;
 
     printf("Closing connection #%d ...\n", client_sock_fd);
@@ -178,9 +173,8 @@ void close_client_socket(int client_sock_fd, int *max_fd, fd_set *set)
     *max_fd = (client_sock_fd == *max_fd) ? client_sock_fd - 1 : *max_fd;
 }
 
-int main(int argc, char *argv[])
-{
-    int client_sock_fd = -1, sock_fd, max_fd = -1;
+int main(int argc, char *argv[]) {
+    int tcpfd = -1, udpfd = -1, client_sock_fd = -1, sock_fd, max_fd = -1;
     struct sockaddr_in6 server_addr, client_addr;
     struct addrinfo *result, *rp;
     struct addrinfo hints;
@@ -214,8 +208,8 @@ int main(int argc, char *argv[])
     printf("sizeof sockaddr_storage %lu\n",sizeof(struct sockaddr_storage));
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
-    hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
     hints.ai_protocol = 0;          /* Any protocol */
     hints.ai_canonname = NULL;
@@ -229,90 +223,92 @@ int main(int argc, char *argv[])
     }
 
     for (rp = result; rp != NULL; rp = rp->ai_next) {
-        int sfd = socket(rp->ai_family, rp->ai_socktype,
-                     rp->ai_protocol);
-        if (sfd == -1)
-            continue;
+        memcpy(&server_addr, rp->ai_addr, sizeof(server_addr));
 
-        printf("Trying: %s\n", sockaddr2nameport(rp->ai_addr));
-        if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
-            memcpy(&server_addr, rp->ai_addr, sizeof(server_addr));
-            close(sfd);
-            break;
+        printf("Trying: %s\n", sockaddr2nameport((const struct sockaddr *)&server_addr));
+
+        /* Create socket for listening (client requests) */
+        tcpfd = socket(server_addr.sin6_family, SOCK_STREAM, rp->ai_protocol);
+        if (tcpfd == -1) {
+            perror("tcp socket()");
+            continue;
         }
 
-        close(sfd);
-    }
+        //if (connect(tcpfd, rp->ai_addr, rp->ai_addrlen) != -1) {
+        //    close(tcpfd);
+        //    break;
+        //}
 
-    /* Create socket for listening (client requests) */
-    listen_sock_fd = socket(server_addr.sin6_family, SOCK_STREAM, IPPROTO_TCP);
-    if (listen_sock_fd == -1) {
-        perror("tcp socket()");
-        return EXIT_FAILURE;
-    }
+        /* Set socket to reuse address */
+        flag = 1;
+        ret = setsockopt(tcpfd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
+        if (ret == -1) {
+            perror("setsockopt()");
+            close(tcpfd);
+            continue;
+        }
 
-    /* Set socket to reuse address */
-    flag = 1;
-    ret = setsockopt(listen_sock_fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
-    if (ret == -1) {
-        perror("setsockopt()");
-        close(listen_sock_fd);
-        return EXIT_FAILURE;
-    }
+        /* set non-blocking */
+        int flags = fcntl(tcpfd, F_GETFL, 0);
+        ret = fcntl(tcpfd, F_SETFL, flags | O_NONBLOCK);
+        if (ret == -1) {
+            perror("fnctl()");
+            close(tcpfd);
+            continue;
+        }
 
-    /* set non-blocking */
-    int flags = fcntl(listen_sock_fd, F_GETFL, 0);
-    fcntl(listen_sock_fd, F_SETFL, flags | O_NONBLOCK);
+        /* Bind address and socket together */
+        ret = bind(tcpfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+        if (ret == -1) {
+            perror("bind()");
+            close(tcpfd);
+            continue;
+        }
 
-    /* Bind address and socket together */
-    ret = bind(listen_sock_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
-    if (ret == -1) {
-        perror("bind()");
-        close(listen_sock_fd);
-        return EXIT_FAILURE;
-    }
+        /* Create listening queue (client requests) */
+        ret = listen(tcpfd, CLIENT_QUEUE_LEN);
+        if (ret == -1) {
+            perror("listen()");
+            close(tcpfd);
+            continue;
+        }
 
-    /* Create listening queue (client requests) */
-    ret = listen(listen_sock_fd, CLIENT_QUEUE_LEN);
-    if (ret == -1) {
-        perror("listen()");
-        close(listen_sock_fd);
-        return EXIT_FAILURE;
-    }
+        /* Create udp socket for listening (client requests) */
+        udpfd = socket(server_addr.sin6_family, SOCK_DGRAM, 0);
+        if (udpfd == -1) {
+            perror("udp socket()");
+            close(tcpfd);
+            continue;
+        }
 
-    /* Create udp socket for listening (client requests) */
-    listen_udp_sock_fd = socket(server_addr.sin6_family, SOCK_DGRAM, 0);
-    if (listen_udp_sock_fd == -1) {
-        perror("udp socket()");
-        return EXIT_FAILURE;
-    }
-
-    /* Bind address and socket together */
-    ret = bind(listen_udp_sock_fd, (struct sockaddr*)&server_addr, sizeof(server_addr));
-    if (ret == -1) {
-        perror("udp bind()");
-        close(listen_udp_sock_fd);
-        return EXIT_FAILURE;
+        /* Bind address and socket together */
+        ret = bind(udpfd, (struct sockaddr*)&server_addr, sizeof(server_addr));
+        if (ret == -1) {
+            perror("udp bind()");
+            close(tcpfd);
+            close(udpfd);
+            continue;
+        }
+        printf("Listening on tcp/udp: %s\n", sockaddr2nameport((struct sockaddr *)&server_addr));
+        break;
     }
 
     client_addr_len = sizeof(client_addr);
-
-    printf("Listening on tcp/udp: %s\n", sockaddr2nameport((struct sockaddr *)&server_addr));
 
     /* Initialize set of file descriptors */
     FD_ZERO(&sock_set);
 
     /* Add tcp listen socket to the set of sockets */
-    FD_SET(listen_sock_fd, &sock_set);
+    FD_SET(tcpfd, &sock_set);
 
     /* Add udp listen socket to the set of sockets */
-    FD_SET(listen_udp_sock_fd, &sock_set);
+    FD_SET(udpfd, &sock_set);
 
     /* add stdin ? */
     //FD_SET(STDIN_FILENO, &sock_set);
 
     /* UDP Listen socket is the max socket */
-    max_fd = listen_udp_sock_fd;
+    max_fd = udpfd;
 
     int lastret = -1;
     while(1) {
@@ -330,33 +326,32 @@ int main(int argc, char *argv[])
             /* Remember number of events on sockets */
             int count = ret;
 
-            if (lastret == 0) {
+            if (lastret == 0)
                 printf("\n");
-            }
             lastret=ret;
             printf("Select %u ...\n", count);
 
             /* Iterate over all sockets */
-            for(sock_fd = 0; sock_fd <= max_fd && count > 0; sock_fd++) {
+            for (sock_fd = 0; sock_fd <= max_fd && count > 0; sock_fd++) {
                 /* Test if event was on socket */
-                if(FD_ISSET(sock_fd, &work_set)) {
+                if (FD_ISSET(sock_fd, &work_set)) {
                     count--;
 
                     /* Was event on main listen socket (new connection)? */
-                    if(sock_fd == listen_sock_fd) {
+                    if (sock_fd == tcpfd) {
                         /* Do TCP handshake with client */
-                        client_sock_fd = accept(listen_sock_fd,
-                                (struct sockaddr*)&client_addr,
-                                &client_addr_len);
+                        client_sock_fd = accept(tcpfd,
+                                                (struct sockaddr*)&client_addr,
+                                                &client_addr_len);
                         if (client_sock_fd == -1) {
                             perror("accept()");
-                            close(listen_sock_fd);
+                            close(tcpfd);
                             return EXIT_FAILURE;
                         }
 
                         printf("New connection #%d from: %s ...\n",
-                                client_sock_fd,
-                                sockaddr2nameport((struct sockaddr *)&client_addr));
+                               client_sock_fd,
+                               sockaddr2nameport((struct sockaddr *)&client_addr));
 
                         /* Add client socket to set of socket file descriptors */
                         FD_SET(client_sock_fd, &sock_set);
@@ -378,14 +373,15 @@ int main(int argc, char *argv[])
 
                         /* When there is no data to read, then FIN packet was received
                          * and server should close the connection. */
-                        if (nread == 0) {
+                        if (nread == 0)
                             close_client_socket(sock_fd, &max_fd, &sock_set);
-                        } else {
+
+                        else {
                             /* Wait for data from client */
                             ret = recvfrom(sock_fd, ch, nread,
-                                    MSG_DONTWAIT,
-                                    (struct sockaddr *)&client_addr,
-                                    &client_addr_len);
+                                           MSG_DONTWAIT,
+                                           (struct sockaddr *)&client_addr,
+                                           &client_addr_len);
                             if (ret == -1) {
                                 perror("recvfrom()");
                                 close_client_socket(sock_fd, &max_fd, &sock_set);
@@ -393,21 +389,21 @@ int main(int argc, char *argv[])
                             }
 
                             printf("Received %i bytes from #%d (%s)\n",
-                                    nread,
-                                    sock_fd,
-                                    sockaddr2nameport((struct sockaddr *)&client_addr));
+                                   nread,
+                                   sock_fd,
+                                   sockaddr2nameport((struct sockaddr *)&client_addr));
 
                             nwrite = hexdump(ch, nread, 16, 8);
                             //printf("sent\n%s",hexdump_buffer);
                             /* Send response to client */
                             printf("Sending %i bytes to #%d (%s)\n",
-                                    nwrite,
-                                    sock_fd,
-                                    sockaddr2nameport((struct sockaddr *)&client_addr));
+                                   nwrite,
+                                   sock_fd,
+                                   sockaddr2nameport((struct sockaddr *)&client_addr));
                             ret = sendto(sock_fd, hexdump_buffer, nwrite,
-                                    0,
-                                    (struct sockaddr *)&client_addr,
-                                    client_addr_len);
+                                         0,
+                                         (struct sockaddr *)&client_addr,
+                                         client_addr_len);
                             if (ret == -1) {
                                 perror("sendto()");
                                 close_client_socket(sock_fd, &max_fd, &sock_set);
@@ -421,13 +417,12 @@ int main(int argc, char *argv[])
             if (lastret == 0) {
                 printf(".");
                 fflush(stdout);
-            } else {
+            } else
                 printf("Timeout, %d fds ", max_fd);
-            }
             lastret=ret;
         } else {
             perror("select()");
-            close(listen_sock_fd);
+            close(tcpfd);
             return EXIT_FAILURE;
         }
     }

@@ -9,8 +9,7 @@
 #define BUF_SIZE 500
 
 int
-main(int argc, char *argv[])
-{
+main(int argc, char *argv[]) {
     struct addrinfo hints;
     struct addrinfo *result, *rp;
     int sfd, s;
@@ -66,7 +65,7 @@ main(int argc, char *argv[])
 
     for (int j = 3; j < argc; j++) {
         len = strlen(argv[j]) + 1;
-                /* +1 for terminating null byte */
+        /* +1 for terminating null byte */
 
         if (len > BUF_SIZE) {
             fprintf(stderr,
