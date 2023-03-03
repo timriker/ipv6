@@ -12,6 +12,8 @@
 #include <sys/ioctl.h>
 #include <sys/select.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <netdb.h>
 
 #define CLIENT_QUEUE_LEN   10
 #define SERVER_PORT        5154
@@ -180,28 +182,67 @@ int main(int argc, char *argv[])
 {
     int client_sock_fd = -1, sock_fd, max_fd = -1;
     struct sockaddr_in6 server_addr, client_addr;
+    struct addrinfo *result, *rp;
+    struct addrinfo hints;
     socklen_t client_addr_len;
     int ret, flag;
     fd_set sock_set, work_set;
     struct timeval timeout;
     char ch[BUFFERLENGTH];
 
+    memset(&server_addr, 0, sizeof(server_addr));
+
     // IPv6
-    server_addr.sin6_family = AF_INET6;
-    server_addr.sin6_addr = in6addr_any;
-    server_addr.sin6_port = htons(SERVER_PORT);
+    //server_addr.sin6_family = AF_INET6;
+    //server_addr.sin6_addr = in6addr_any;
+    //server_addr.sin6_port = htons(SERVER_PORT);
 
     // IPv4
     //((struct sockaddr *)&server_addr)->sa_family = AF_INET;
     //((struct sockaddr_in *)&server_addr)->sin_addr.s_addr = INADDR_ANY;
     //((struct sockaddr_in *)&server_addr)->sin_port = htons(SERVER_PORT);
 
-    printf("Trying: %s\n", sockaddr2nameport((struct sockaddr *)&server_addr));
+    if (argc != 3) {
+        fprintf(stderr, "Usage: %s name service\n\texample 0.0.0.0 8000\n", argv[0]);
+        exit(EXIT_FAILURE);
+    }
+
     printf("sizeof sockaddr %lu\n",sizeof(struct sockaddr));
     printf("sizeof sockaddr_in %lu\n",sizeof(struct sockaddr_in));
     printf("sizeof sockaddr_in6 %lu\n",sizeof(struct sockaddr_in6));
     printf("sizeof sockaddr_un %lu\n",sizeof(struct sockaddr_un));
     printf("sizeof sockaddr_storage %lu\n",sizeof(struct sockaddr_storage));
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_DGRAM; /* Datagram socket */
+    hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
+    hints.ai_protocol = 0;          /* Any protocol */
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
+
+    int s = getaddrinfo(argv[1], argv[2], &hints, &result);
+    if (s != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+        exit(EXIT_FAILURE);
+    }
+
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        int sfd = socket(rp->ai_family, rp->ai_socktype,
+                     rp->ai_protocol);
+        if (sfd == -1)
+            continue;
+
+        printf("Trying: %s\n", sockaddr2nameport(rp->ai_addr));
+        if (connect(sfd, rp->ai_addr, rp->ai_addrlen) != -1) {
+            memcpy(&server_addr, rp->ai_addr, sizeof(server_addr));
+            close(sfd);
+            break;
+        }
+
+        close(sfd);
+    }
 
     /* Create socket for listening (client requests) */
     listen_sock_fd = socket(server_addr.sin6_family, SOCK_STREAM, IPPROTO_TCP);
