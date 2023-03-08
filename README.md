@@ -17,6 +17,8 @@ It echos a hexdump of whatever is set to it. Test server.c by compiling:
 
 g++ -o server server.c
 
+g++ rot13-event.c -l:libevent.a -o rot13-event
+
 Then run:
 
 $ ./server :: 8000
